@@ -1,15 +1,18 @@
 CC = gcc
-CFLAGS = -std=c99 -Werror -Wall -Wextra $(shell pkg-config --cflags dbus-1)
-LDFLAGS = $(shell pkg-config --libs dbus-1)
-TARGET = dbus_program
-SRC = dbus.c
+CFLAGS = -std=c99 -Werror -Wall -Wextra $(shell pkg-config --cflags dbus-1 dbus-glib-1 glib-2.0)
+LDFLAGS = $(shell pkg-config --libs dbus-1 dbus-glib-1 glib-2.0)
+SRCDIR = src
+BUILDDIR = build
+SRC = $(wildcard $(SRCDIR)/*.c)
+TARGETS = $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%,$(SRC))
 
-all: $(TARGET)
+all: $(TARGETS)
 
-$(TARGET): $(SRC)
-	$(CC) $(CFLAGS) -o $(TARGET) $(SRC) $(LDFLAGS)
+$(BUILDDIR)/%: $(SRCDIR)/%.c
+	@mkdir -p $(BUILDDIR)
+	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
 
 clean:
-	rm -f $(TARGET)
+	rm -rf $(BUILDDIR)
 
 .PHONY: all clean
