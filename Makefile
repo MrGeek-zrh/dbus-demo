@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -std=c99 -Werror -Wall -Wextra $(shell pkg-config --cflags dbus-1 dbus-glib-1 glib-2.0)
+CFLAGS = -std=c99 -g -O0 -Werror -Wall -Wextra $(shell pkg-config --cflags dbus-1 dbus-glib-1 glib-2.0)
 LDFLAGS = $(shell pkg-config --libs dbus-1 dbus-glib-1 glib-2.0)
 SRCDIR = src
 BUILDDIR = build
