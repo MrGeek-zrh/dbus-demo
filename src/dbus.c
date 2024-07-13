@@ -1,73 +1,82 @@
 #include <dbus/dbus.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-int main(int argc, char *argv[])
+void get_pid_for_service(const char *service_name)
 {
-    (void)argc;
-    (void)argv;
-    DBusError dbus_error;
-    DBusConnection *dbus_conn;
-    DBusMessage *dbus_msg;
-    DBusMessage *dbus_reply;
-    const char *dbus_result;
-    const char *checkpoint_arg = "com.example.SystemService"; // Example argument for the checkpoint function
+    DBusError err;
+    DBusConnection *conn;
+    DBusMessage *msg;
+    DBusMessage *reply;
 
-    // Initialize D-Bus error
-    dbus_error_init(&dbus_error);
+    // Initialize the error
+    dbus_error_init(&err);
 
-    // Connect to D-Bus
-    dbus_conn = dbus_bus_get(DBUS_BUS_SYSTEM, &dbus_error);
-    if (dbus_conn == NULL) {
-        fprintf(stderr, "Connection Error (%s): %s\n", dbus_error.name, dbus_error.message);
-        dbus_error_free(&dbus_error);
-        return 1;
+    // Connect to the system bus
+    conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
+    if (dbus_error_is_set(&err)) {
+        fprintf(stderr, "Connection Error (%s)\n", err.message);
+        dbus_error_free(&err);
+        return;
+    }
+    if (conn == NULL) {
+        return;
     }
 
-    // Compose remote procedure call
-    dbus_msg = dbus_message_new_method_call("org.freedesktop.DBus", "/", "org.freedesktop.DBus.Introspectable",
-                                            "checkpoint");
-    if (dbus_msg == NULL) {
-        dbus_connection_unref(dbus_conn);
-        fprintf(stderr, "ERROR: dbus_message_new_method_call - Unable to allocate memory for the message!\n");
-        return 1;
+    // Create a new method call and check for errors
+    msg = dbus_message_new_method_call("org.freedesktop.DBus", // target for the method call
+                                       "/org/freedesktop/DBus", // object to call on
+                                       "org.freedesktop.DBus", // interface to call on
+                                       "Checkpoint"); // method name
+    if (msg == NULL) {
+        fprintf(stderr, "Message Null\n");
+        return;
     }
 
-    // Append arguments to the message
-    if (!dbus_message_append_args(dbus_msg, DBUS_TYPE_STRING, &checkpoint_arg, DBUS_TYPE_INVALID)) {
-        dbus_message_unref(dbus_msg);
-        dbus_connection_unref(dbus_conn);
-        fprintf(stderr, "ERROR: dbus_message_append_args - Unable to append arguments to the message!\n");
-        return 1;
+    // Append arguments
+    DBusMessageIter args;
+    dbus_message_iter_init_append(msg, &args);
+    if (!dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &service_name)) {
+        fprintf(stderr, "Out Of Memory!\n");
+        return;
     }
 
-    // Invoke remote procedure call, block for response
-    dbus_reply = dbus_connection_send_with_reply_and_block(dbus_conn, dbus_msg, DBUS_TIMEOUT_USE_DEFAULT, &dbus_error);
-    if (dbus_reply == NULL) {
-        dbus_message_unref(dbus_msg);
-        dbus_connection_unref(dbus_conn);
-        fprintf(stderr, "Reply Error (%s): %s\n", dbus_error.name, dbus_error.message);
-        dbus_error_free(&dbus_error);
-        return 1;
+    // Send message and get a reply
+    reply = dbus_connection_send_with_reply_and_block(conn, msg, -1, &err);
+    dbus_message_unref(msg);
+
+    if (dbus_error_is_set(&err)) {
+        fprintf(stderr, "Error (%s)\n", err.message);
+        dbus_error_free(&err);
+        return;
     }
 
-    // Parse response
-    if (!dbus_message_get_args(dbus_reply, &dbus_error, DBUS_TYPE_STRING, &dbus_result, DBUS_TYPE_INVALID)) {
-        dbus_message_unref(dbus_msg);
-        dbus_message_unref(dbus_reply);
-        dbus_connection_unref(dbus_conn);
-        fprintf(stderr, "Argument Error (%s): %s\n", dbus_error.name, dbus_error.message);
-        dbus_error_free(&dbus_error);
-        return 1;
+    // 解析回复消息
+    if (dbus_message_iter_init(reply, &args)) {
+        if (dbus_message_iter_get_arg_type(&args) == DBUS_TYPE_ARRAY) {
+            DBusMessageIter sub;
+            dbus_message_iter_recurse(&args, &sub);
+
+            while (dbus_message_iter_get_arg_type(&sub) != DBUS_TYPE_INVALID) {
+                if (dbus_message_iter_get_arg_type(&sub) == DBUS_TYPE_STRING) {
+                    const char *name;
+                    dbus_message_iter_get_basic(&sub, &name);
+                    printf("Service: %s\n", name);
+                }
+                dbus_message_iter_next(&sub);
+            }
+        }
     }
 
-    // Work with the results of the remote procedure call
-    printf("Connected to D-Bus as \"%s\".\n", dbus_bus_get_unique_name(dbus_conn));
-    printf("Introspection Result:\n\n");
-    printf("%s\n", dbus_result);
+    // 释放回复消息
+    dbus_message_unref(reply);
+    dbus_connection_unref(conn);
+}
 
-    dbus_message_unref(dbus_msg);
-    dbus_message_unref(dbus_reply);
-    dbus_connection_unref(dbus_conn);
-
+int main()
+{
+    // Replace this with the actual service name or connection name
+    const char *service_name = "com.example.SystemService";
+    get_pid_for_service(service_name);
     return 0;
 }
