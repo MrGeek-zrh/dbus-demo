@@ -1,3 +1,4 @@
+#include "dbus/dbus-protocol.h"
 #include <dbus/dbus.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,6 +29,7 @@ void get_pid_for_service(const char *service_name)
                                        "/org/freedesktop/DBus", // object to call on
                                        "org.freedesktop.DBus", // interface to call on
                                        "Checkpoint"); // method name
+
     if (msg == NULL) {
         fprintf(stderr, "Message Null\n");
         return;
@@ -51,24 +53,17 @@ void get_pid_for_service(const char *service_name)
         return;
     }
 
-    // 解析回复消息
-    if (dbus_message_iter_init(reply, &args)) {
-        if (dbus_message_iter_get_arg_type(&args) == DBUS_TYPE_ARRAY) {
-            DBusMessageIter sub;
-            dbus_message_iter_recurse(&args, &sub);
-
-            while (dbus_message_iter_get_arg_type(&sub) != DBUS_TYPE_INVALID) {
-                if (dbus_message_iter_get_arg_type(&sub) == DBUS_TYPE_STRING) {
-                    const char *name;
-                    dbus_message_iter_get_basic(&sub, &name);
-                    printf("Service: %s\n", name);
-                }
-                dbus_message_iter_next(&sub);
-            }
-        }
+    char * fallback;
+    // Read the reply
+    if (!dbus_message_iter_init(reply, &args)) {
+        fprintf(stderr, "Reply has no arguments!\n");
+    } else if (DBUS_TYPE_STRING != dbus_message_iter_get_arg_type(&args)) {
+        fprintf(stderr, "Argument is not string!\n");
+    } else {
+        dbus_message_iter_get_basic(&args, &fallback);
+        printf("The PID of service '%s' is %s\n", service_name, fallback);
     }
 
-    // 释放回复消息
     dbus_message_unref(reply);
     dbus_connection_unref(conn);
 }
