@@ -55,6 +55,7 @@ int main()
     }
 
     // Request a name on the bus
+    // request a bus name?
     ret = dbus_bus_request_name(conn, "com.example.SystemService", DBUS_NAME_FLAG_REPLACE_EXISTING, &err);
     if (dbus_error_is_set(&err)) {
         fprintf(stderr, "Name Error (%s)\n", err.message);
